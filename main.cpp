@@ -13,14 +13,13 @@ using namespace concurrency::streams; // Asynchronous streams
 using namespace std;
 
 #include <iomanip>
-
 #include <nlohmann/json-schema.hpp>
 
 using nlohmann::json;
 using nlohmann::json_schema::json_validator;
 
-
-static nlohmann::json person_schema = R"(
+// Create json_schema for the validation
+static nlohmann::json person_schema = R"(			
 {
   "title": "PersonSchema",
   "description": "Validation for users",
@@ -90,20 +89,19 @@ nlohmann::json web_to_nlhomann (web::json::value wj){
 }
 
 void handle_post(http_request request){
-	web::json::value web_json;
-	request.extract_json()
-		.then([&request, &web_json](pplx::task<web::json::value> task){
-			
+	
+	request.extract_json()											    // Extracts the body of the request message into a json value
+		.then([&request](pplx::task<web::json::value> task){
+			web::json::value web_json;		
 			web_json = task.get();
 
-			nlohmann::json_schema::json_validator validator; // create validator
-			validator.set_root_schema(person_schema); // insert root-schema
+			nlohmann::json_schema::json_validator validator; 			// create validator
+			validator.set_root_schema(person_schema); 					// insert root-schema
 
 			try {
 				nlohmann::json wtn_json = web_to_nlhomann(web_json);  	// In order to validate json, validate() need a nlohmann instead of a web
-				validator.validate(wtn_json); 							// validate the document - uses the default throwing error-handler
+				validator.validate(wtn_json); 							// validate the json - uses the default throwing error-handler
 				std::cout << "Validation succeeded\n";
-				
 			} catch (const std::exception &e) {
 				std::cerr << "Validation failed, here is why: " << e.what() << "\n";
 			}	
@@ -114,18 +112,14 @@ void handle_post(http_request request){
 
 int main(int argc, char* argv[])
 {
-	
-
-
 	http_listener listener(U("http://localhost:8080/user"));
-
-	listener.support(methods::POST, handle_post); // Add an handler for HTTP request POST (handle_post is a function pointer
+	listener.support(methods::POST, handle_post); 				// Add an handler for HTTP request POST (handle_post is a function pointer
 
 	try{
-		listener.open() 											// Asynchronously open the listener (create a task), i.e. start accepting requests
-			.then([](){printf("Wait for POST request\n");});	// Use callback in order to call functions. then() make sure that those functions are assigned to the same thread.
+		listener.open() 										// Asynchronously open the listener (create a task), i.e. start accepting requests
+			.then([](){cout << "Wait for POST request\n";});	// Use callback in order to call functions. then() make sure that those functions are assigned to the same thread.
 
-		std::mutex mtx;
+		std::mutex mtx;											// Use double mutex block to lock the execution
 		mtx.lock();
 		mtx.lock();
 	}
